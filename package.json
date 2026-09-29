@@ -11,6 +11,7 @@
     "url": "https://github.com/ryro-hq/syrox-opencode.git"
   },
   "scripts": {
-    "check": "node --check index.ts && node --check client.mjs && node --check feedback.mjs && node --test *.test.mjs"
+    "check": "node --check index.ts && node --check client.mjs && node --check feedback.mjs && node --test *.test.mjs",
+    "test:host": "node host.integration.mjs"
   }
 }
