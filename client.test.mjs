@@ -1,6 +1,7 @@
 import { strict as assert } from 'node:assert'
 import { existsSync } from 'node:fs'
 import { mkdtemp, mkdir, readFile, rm, symlink, writeFile } from 'node:fs/promises'
+import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 import { test } from 'node:test'
 import plugin from './index.ts'
@@ -11,7 +12,7 @@ const binary = process.env.SRX_BIN ?? resolve('../syrox/target/release/srx')
 const withServer = existsSync(binary) ? test : test.skip
 
 test('workspace roots and relative path containment', async () => {
-  const root = await mkdtemp('/tmp/opencode/syrox-plugin-root-')
+  const root = await mkdtemp(join(tmpdir(), 'syrox-plugin-root-'))
   try {
     await mkdir(join(root, 'nested'))
     await writeFile(join(root, 'main.srx'), '')
@@ -28,8 +29,8 @@ test('workspace roots and relative path containment', async () => {
 })
 
 withServer('OpenCode plugin registers usable tools and rejects symlink escapes', async t => {
-  const root = await mkdtemp('/tmp/opencode/syrox-plugin-tool-')
-  const outside = await mkdtemp('/tmp/opencode/syrox-plugin-outside-')
+  const root = await mkdtemp(join(tmpdir(), 'syrox-plugin-tool-'))
+  const outside = await mkdtemp(join(tmpdir(), 'syrox-plugin-outside-'))
   const old = process.env.SYROX_LSP_BIN
   process.env.SYROX_LSP_BIN = binary
   let close
@@ -97,7 +98,7 @@ test('patch feedback recognizes changed files, not example text in patch bodies'
 })
 
 test('lock changes notify the graph while ordinary source updates use didSave', async () => {
-  const root = await mkdtemp('/tmp/opencode/syrox-plugin-notify-')
+  const root = await mkdtemp(join(tmpdir(), 'syrox-plugin-notify-'))
   try {
     const seen = []
     const lsp = {
@@ -113,7 +114,7 @@ test('lock changes notify the graph while ordinary source updates use didSave', 
 })
 
 withServer('real Syrox stdio transport, edits, hover and virtual std navigation', async t => {
-  const root = await mkdtemp('/tmp/opencode/syrox-plugin-protocol-')
+  const root = await mkdtemp(join(tmpdir(), 'syrox-plugin-protocol-'))
   const old = process.env.SYROX_LSP_BIN
   process.env.SYROX_LSP_BIN = binary
   const lsp = new SyroxLsp(root)
@@ -158,7 +159,7 @@ withServer('real Syrox stdio transport, edits, hover and virtual std navigation'
 })
 
 withServer('explicit reload sees external edits to an imported source', async t => {
-  const root = await mkdtemp('/tmp/opencode/syrox-plugin-reload-')
+  const root = await mkdtemp(join(tmpdir(), 'syrox-plugin-reload-'))
   const old = process.env.SYROX_LSP_BIN
   process.env.SYROX_LSP_BIN = binary
   const lsp = new SyroxLsp(root)
@@ -181,7 +182,7 @@ withServer('explicit reload sees external edits to an imported source', async t 
 })
 
 withServer('hints and quickfixes use negotiated capabilities without editing disk', async t => {
-  const root = await mkdtemp('/tmp/opencode/syrox-plugin-hints-')
+  const root = await mkdtemp(join(tmpdir(), 'syrox-plugin-hints-'))
   const old = process.env.SYROX_LSP_BIN
   process.env.SYROX_LSP_BIN = binary
   const lsp = new SyroxLsp(root)
