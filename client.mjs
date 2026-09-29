@@ -1,6 +1,6 @@
 import { spawn } from 'node:child_process'
-import { readFile, realpath, stat } from 'node:fs/promises'
 import { existsSync } from 'node:fs'
+import { readFile, realpath, stat } from 'node:fs/promises'
 import { dirname, isAbsolute, join, relative, resolve, sep } from 'node:path'
 import { pathToFileURL } from 'node:url'
 
@@ -53,7 +53,6 @@ export class LspClient {
     this.child = spawn(this.binary, ['lsp', this.root], { cwd: this.root, stdio: ['pipe', 'pipe', 'pipe'] })
     this.child.stdout.on('data', chunk => this.receive(chunk))
     this.child.stdin.on('error', error => this.fail(error))
-    // Never write protocol data or unbounded stderr to the host's stdout.
     this.child.stderr.on('data', () => {})
     this.child.on('error', error => this.fail(error))
     this.child.on('exit', (code, signal) => this.fail(new Error(`srx lsp exited (${code ?? signal})`)))
@@ -63,9 +62,11 @@ export class LspClient {
       capabilities: {
         general: { positionEncodings: ['utf-16'] },
         workspace: { workspaceEdit: { documentChanges: true } },
-        textDocument: { codeAction: {
-          codeActionLiteralSupport: { codeActionKind: { valueSet: ['quickfix'] } },
-        } },
+        textDocument: {
+          codeAction: {
+            codeActionLiteralSupport: { codeActionKind: { valueSet: ['quickfix'] } },
+          },
+        },
       },
       initializationOptions: {
         workspaceMode: this.mode,
@@ -119,8 +120,7 @@ export class LspClient {
       else pending.resolve(value.result)
       return
     }
-    // Syrox's watcher and hint-refresh registrations are not requested, but
-    // answer server requests so an unexpected capability cannot stall it.
+    // Acknowledge unexpected server requests so they cannot stall the server.
     if (value.id !== undefined && value.method) {
       this.send({ jsonrpc: '2.0', id: value.id, result: null })
     }
@@ -197,7 +197,6 @@ export class LspClient {
     this.notify('textDocument/didChange', {
       textDocument: { uri, version }, contentChanges: [{ text }],
     })
-    // Files are read from disk; reload the input graph on save as in an editor.
     this.notify('textDocument/didSave', { textDocument: { uri } })
     return { uri, version, changed: true }
   }
@@ -286,11 +285,21 @@ export class SyroxLsp {
       const ready = client.start()
       this.starting.set(key, ready)
     }
-    try { await this.starting.get(key) }
-    catch (error) { client.close(); this.clients.delete(key); this.starting.delete(key); throw error }
+    try {
+      await this.starting.get(key)
+    } catch (error) {
+      client.close()
+      this.clients.delete(key)
+      this.starting.delete(key)
+      throw error
+    }
     this.starting.delete(key)
-    try { return await client.query(file, method, params, signal) }
-    catch (error) { if (client.closed) this.clients.delete(key); throw error }
+    try {
+      return await client.query(file, method, params, signal)
+    } catch (error) {
+      if (client.closed) this.clients.delete(key)
+      throw error
+    }
   }
 
   async readSource(uri, signal) {
