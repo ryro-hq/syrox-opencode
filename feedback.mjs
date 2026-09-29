@@ -9,7 +9,7 @@ export function changedFiles(tool, input) {
   if (tool !== 'patch' || typeof input?.patchText !== 'string') return []
   const paths = []
   for (const line of input.patchText.split(/\r?\n/)) {
-    const operation = /^\*\*\* (?:Add File|Update File|Move to): (.+)$/.exec(line)
+    const operation = /^\*\*\* (?:Add File|Update File|Delete File|Move to): (.+)$/.exec(line)
     if (operation) paths.push(operation[1])
   }
   return paths
@@ -25,6 +25,10 @@ export async function diagnosticFeedback(lsp, root, tool, input, signal) {
   if (!paths.length) return ''
   const lines = []
   for (const path of paths.slice(0, MAX_FILES)) {
+    if (!existsSync(resolve(root, path))) {
+      lines.push(`${path}: arquivo removido; grafo Syrox notificado`)
+      continue
+    }
     try {
       const diagnostics = await lsp.query(path, 'diagnostics', {}, signal)
       if (!diagnostics.length) {

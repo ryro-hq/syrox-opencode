@@ -3,6 +3,7 @@
   "version": "0.1.0",
   "type": "module",
   "main": "./index.ts",
+  "files": ["index.ts", "client.mjs", "feedback.mjs", "README.txt", "LICENSE"],
   "private": true,
   "license": "Apache-2.0",
   "repository": {
@@ -10,6 +11,6 @@
     "url": "https://github.com/ryro-hq/syrox-opencode.git"
   },
   "scripts": {
-    "check": "node --check index.ts && node --check client.mjs && node --check feedback.mjs && node --test client.test.mjs"
+    "check": "node --check index.ts && node --check client.mjs && node --check feedback.mjs && node --test *.test.mjs"
   }
 }

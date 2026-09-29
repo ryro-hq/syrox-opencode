@@ -50,3 +50,4 @@ The first command runs portable unit tests and skips tests needing srx. With
 SRX_BIN, the protocol suite checks real diagnostics, edits, navigation, hints
 and quick fixes. OpenCode and Syrox have independent release cycles; language
 semantics and LSP protocol behavior remain in the Syrox server.
+When SRX_BIN is set, a missing binary fails the suite instead of skipping it.

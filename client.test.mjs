@@ -9,6 +9,9 @@ import { changedFiles, diagnosticFeedback } from './feedback.mjs'
 import { SyroxLsp, inside, projectRoot } from './client.mjs'
 
 const binary = process.env.SRX_BIN ?? resolve('../syrox/target/release/srx')
+if (process.env.SRX_BIN && !existsSync(binary)) {
+  throw new Error(`SRX_BIN does not exist: ${binary}`)
+}
 const withServer = existsSync(binary) ? test : test.skip
 
 test('workspace roots and relative path containment', async () => {
@@ -93,8 +96,9 @@ test('patch feedback recognizes changed files, not example text in patch bodies'
 @@
 +*** Add File: imaginary.srx
 *** Move to: std/renamed.srx
+*** Delete File: std/removed.srx
 *** End Patch` }
-  assert.deepEqual(changedFiles('patch', input), ['std/main.srx', 'std/renamed.srx'])
+  assert.deepEqual(changedFiles('patch', input), ['std/main.srx', 'std/renamed.srx', 'std/removed.srx'])
 })
 
 test('lock changes notify the graph while ordinary source updates use didSave', async () => {
@@ -110,6 +114,11 @@ test('lock changes notify the graph while ordinary source updates use didSave', 
     assert.deepEqual(seen, [])
     await diagnosticFeedback(lsp, root, 'write', { path: 'Syrox.lock' })
     assert.deepEqual(seen, [['Syrox.lock']])
+    const deleted = await diagnosticFeedback(lsp, root, 'patch', {
+      patchText: '*** Begin Patch\n*** Delete File: missing.srx\n*** End Patch',
+    })
+    assert.deepEqual(seen, [['Syrox.lock'], ['missing.srx']])
+    assert.match(deleted, /arquivo removido/)
   } finally { await rm(root, { recursive: true, force: true }) }
 })
 
@@ -130,16 +139,19 @@ withServer('real Syrox stdio transport, edits, hover and virtual std navigation'
   assert.deepEqual(await lsp.query('main.srx', 'diagnostics', {}), [])
   const server = [...lsp.clients.values()][0]
   const notify = server.notify.bind(server)
-  let watched = false
+  const watched = []
   server.notify = (method, params) => {
     if (method === 'workspace/didChangeWatchedFiles') {
-      assert(params.changes[0].uri.endsWith('/Syrox.lock'))
-      watched = true
+      watched.push(...params.changes)
     }
     notify(method, params)
   }
   lsp.notifyChanges(['Syrox.lock'])
-  assert(watched)
+  lsp.notifyChanges(['removed.srx'])
+  assert(watched[0].uri.endsWith('/Syrox.lock'))
+  assert.equal(watched[0].type, 3)
+  assert(watched[1].uri.endsWith('/removed.srx'))
+  assert.equal(watched[1].type, 3)
   const at = text.indexOf('std::PackageId')
   const definition = await lsp.query('main.srx', 'textDocument/definition', {
     position: { line: 0, character: at },

@@ -319,7 +319,7 @@ export class SyroxLsp {
     for (const client of this.clients.values()) {
       if (client.closed) continue
       const changes = changed.filter(file => inside(client.root, file)).map(file => ({
-        uri: pathToFileURL(file).href, type: 2,
+        uri: pathToFileURL(file).href, type: existsSync(file) ? 2 : 3,
       }))
       if (changes.length && !this.starting.has(`${client.mode}:${client.root}`)) {
         try { client.notify('workspace/didChangeWatchedFiles', { changes }) } catch {}
